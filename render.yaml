@@ -1,0 +1,62 @@
+services:
+  - type: web
+    name: bible-render-api
+    runtime: docker
+    rootDir: render-service
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /health
+    plan: starter
+    disk:
+      name: bible-render-data
+      mountPath: /data
+      sizeGB: 5
+    envVars:
+      - key: RENDER_API_KEY_INTERNAL
+        sync: false
+      - key: VERSE_SOURCE
+        value: auto
+      - key: BIBLE_API_BASE
+        value: https://bible-api.com
+      - key: OUTPUT_BASE_URL
+        sync: false
+
+  - type: web
+    name: bible-shorts-n8n
+    runtime: docker
+    rootDir: n8n
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /healthz
+    plan: starter
+    disk:
+      name: bible-n8n-data
+      mountPath: /home/node/.n8n
+      sizeGB: 2
+    envVars:
+      - key: N8N_PORT
+        value: "10000"
+      - key: N8N_HOST
+        sync: false
+      - key: WEBHOOK_URL
+        sync: false
+      - key: N8N_PROTOCOL
+        value: https
+      - key: N8N_EDITOR_BASE_URL
+        sync: false
+      - key: N8N_ENCRYPTION_KEY
+        sync: false
+      - key: GENERIC_TIMEZONE
+        value: UTC
+      - key: RENDER_API_BASE
+        sync: false
+      - key: RENDER_API_KEY_INTERNAL
+        sync: false
+      - key: VERSE_SOURCE
+        value: auto
+      - key: YOUTUBE_PRIVACY_STATUS
+        value: public
+      - key: YOUTUBE_CATEGORY_ID
+        value: "22"
+      - key: ALERT_WEBHOOK_URL
+        sync: false
