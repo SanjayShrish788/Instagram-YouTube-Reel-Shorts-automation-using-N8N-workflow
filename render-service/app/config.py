@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     @property
     def output_dir(self) -> Path:
-        return self.data_root / "output"
+        return self.data_root / "reels"
 
     @property
     def tmp_dir(self) -> Path:

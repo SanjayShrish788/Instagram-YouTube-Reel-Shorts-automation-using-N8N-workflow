@@ -1,0 +1,617 @@
+{
+  "name": "Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        180,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://graph.facebook.com/v21.0/{{$env.INSTAGRAM_USER_ID}}/content_publishing_limit",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "config,quota_usage"
+            },
+            {
+              "name": "access_token",
+              "value": "={{$env.INSTAGRAM_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2",
+      "name": "Check IG Quota",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        430,
+        320
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.data && $json.data[0] ? $json.data[0] : {};\nconst usage = Number(payload.quota_usage || 0);\nconst total = Number(payload.config?.quota_total || 25);\nconst remaining = Math.max(total - usage, 0);\n\nreturn [{\n  json: {\n    quotaUsage: usage,\n    quotaTotal: total,\n    quotaRemaining: remaining,\n    canPublish: usage < total,\n    queueFolderId: String($env.DRIVE_QUEUE_FOLDER_ID || ''),\n    postedFolderId: String($env.DRIVE_POSTED_FOLDER_ID || ''),\n    queueFolderPath: 'BibleShorts/queue',\n    postedFolderPath: 'BibleShorts/posted',\n    igUserId: String($env.INSTAGRAM_USER_ID || ''),\n    igAccessToken: String($env.INSTAGRAM_ACCESS_TOKEN || ''),\n    igCaptionTemplate: String($env.INSTAGRAM_CAPTION_TEMPLATE || '#bible #shorts #faith #reels')\n  }\n}];"
+      },
+      "id": "3",
+      "name": "Evaluate Quota",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        690,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "quota-check",
+              "leftValue": "={{$json.canPublish}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4",
+      "name": "Quota Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        940,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "'1oFNdUaD9SkhLMPojRkm1cENljIfkoCzz' in parents and trashed = false",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "id": "5",
+      "name": "Get Next Queue Video",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "alwaysOutputData": true,
+      "position": [
+        1210,
+        220
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.all().filter((item) => item?.json?.id);\n\nconst dedup = [];\nconst seen = new Set();\nfor (const item of raw) {\n  const id = String(item.json.id);\n  if (seen.has(id)) continue;\n  seen.add(id);\n  dedup.push(item);\n}\n\nconst parseVideoNum = (name) => {\n  const m = String(name || '').match(/video_(\\d+)/i);\n  return m ? Number(m[1]) : Number.POSITIVE_INFINITY;\n};\n\nconst parseCreated = (item) => {\n  const t = Date.parse(String(item?.json?.createdTime || item?.json?.modifiedTime || ''));\n  return Number.isFinite(t) ? t : Number.MAX_SAFE_INTEGER;\n};\n\ndedup.sort((a, b) => {\n  const an = parseVideoNum(a?.json?.name);\n  const bn = parseVideoNum(b?.json?.name);\n  if (Number.isFinite(an) && Number.isFinite(bn) && an !== bn) return an - bn;\n  const dt = parseCreated(a) - parseCreated(b);\n  if (dt !== 0) return dt;\n  return String(a?.json?.name || '').localeCompare(String(b?.json?.name || ''));\n});\n\nif (dedup.length === 0) return [{ json: {} }];\nreturn dedup;"
+      },
+      "id": "16",
+      "name": "Sort Queue Videos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst BATCH_SIZE = 10;\nconst batch = items.slice(0, BATCH_SIZE);\n\nif (batch.length === 0) {\n  return [];\n}\n\nreturn batch.map(item => ({\n  json: item.json,\n  binary: item.binary\n}));"
+      },
+      "id": "17",
+      "name": "Take First Queue Video",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1710,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-file",
+              "leftValue": "={{$json.id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6",
+      "name": "Queue Has File?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1960,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{$json.id}}"
+        },
+        "options": {}
+      },
+      "id": "7",
+      "name": "Download Queue Video",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2210,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.cloudinary.com/v1_1/{{$env.CLOUDINARY_CLOUD_NAME}}/video/upload",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "upload_preset",
+              "value": "={{$env.CLOUDINARY_UNSIGNED_UPLOAD_PRESET}}"
+            },
+            {
+              "name": "public_id",
+              "value": "={{ (() => { const srcName = String($('Take First Queue Video').item.json.name || 'video').replace(/\\.mp4$/i, ''); const safe = srcName.replace(/[^a-zA-Z0-9_-]/g, '_'); return `bibleshorts_${safe}_${Date.now()}_${Math.floor(Math.random() * 100000)}`; })() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8",
+      "name": "Upload to Cloudinary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1960,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{$if($('Evaluate Quota').isExecuted, $('Evaluate Quota').item.json.igUserId, $env.INSTAGRAM_USER_ID)}}/media",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "media_type",
+              "value": "REELS"
+            },
+            {
+              "name": "video_url",
+              "value": "={{$json.secure_url}}"
+            },
+            {
+              "name": "caption",
+              "value": "={{$if($('Evaluate Quota').isExecuted, $('Evaluate Quota').item.json.igCaptionTemplate, $env.INSTAGRAM_CAPTION_TEMPLATE || '#bible #shorts #faith #reels')}}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{$if($('Evaluate Quota').isExecuted, $('Evaluate Quota').item.json.igAccessToken, $env.INSTAGRAM_ACCESS_TOKEN)}}"
+            }
+          ]
+        },
+        "sendBody": false,
+        "options": {}
+      },
+      "id": "9",
+      "name": "Create IG Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2210,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "amount": 90,
+        "unit": "seconds"
+      },
+      "id": "10",
+      "name": "Wait IG Processing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2450,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{$if($('Evaluate Quota').isExecuted, $('Evaluate Quota').item.json.igUserId, $env.INSTAGRAM_USER_ID)}}/media_publish",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{$json.id || $json.creation_id || $('Create IG Media').item.json.id}}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{$if($('Evaluate Quota').isExecuted, $('Evaluate Quota').item.json.igAccessToken, $env.INSTAGRAM_ACCESS_TOKEN)}}"
+            }
+          ]
+        },
+        "sendBody": false,
+        "options": {}
+      },
+      "id": "11",
+      "name": "Publish IG Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2690,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 8,
+      "waitBetweenTries": 15000
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "binaryProperty": "data",
+        "title": "={{ (() => {\n  const name = String($json.name || '');\n  const marker = '__ref_';\n  const markerIdx = name.toLowerCase().lastIndexOf(marker);\n  \n  if (markerIdx < 0) return 'Bible Verse #Shorts';\n  \n  const raw0 = name.slice(markerIdx + marker.length);\n  const raw = raw0.toLowerCase().endsWith('.mp4') ? raw0.slice(0, -4).toLowerCase() : raw0.toLowerCase();\n  const us = raw.lastIndexOf('_');\n  \n  let verse = '';\n  let bookRaw = raw;\n  if (us > 0) {\n    verse = raw.slice(us + 1);\n    bookRaw = raw.slice(0, us);\n  }\n  \n  const capitalizeWord = (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();\n  const bookWords = bookRaw.split('_').filter(w => w.length > 0);\n  const bookDisplay = bookWords.map(capitalizeWord).join(' ');\n  const verseDisplay = verse.split('_').join(':');\n  \n  if (bookDisplay && verseDisplay) {\n    return `${bookDisplay} ${verseDisplay} | Bible Verse #Shorts`;\n  }\n  \n  return 'Bible Verse #Shorts';\n})() }}",
+        "description": "={{ (() => {\n  const name = String($json.name || '');\n  const marker = '__ref_';\n  const markerIdx = name.toLowerCase().lastIndexOf(marker);\n  \n  let verseRef = 'Bible Verse';\n  if (markerIdx >= 0) {\n    const raw0 = name.slice(markerIdx + marker.length);\n    const raw = raw0.toLowerCase().endsWith('.mp4') ? raw0.slice(0, -4).toLowerCase() : raw0.toLowerCase();\n    const us = raw.lastIndexOf('_');\n    \n    let verse = '';\n    let bookRaw = raw;\n    if (us > 0) {\n      verse = raw.slice(us + 1);\n      bookRaw = raw.slice(0, us);\n    }\n    \n    const capitalizeWord = (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();\n    const bookWords = bookRaw.split('_').filter(w => w.length > 0);\n    const bookDisplay = bookWords.map(capitalizeWord).join(' ');\n    const verseDisplay = verse.split('_').join(':');\n    \n    if (bookDisplay && verseDisplay) {\n      verseRef = `${bookDisplay} ${verseDisplay}`;\n    }\n  }\n  \n  return `Trust in the Lord's word. \\n\\n${verseRef}\\n\\n#faith #motivation #bibleverse #trustgod #shorts #blessed`;\n})() }}",
+        "categoryId": "={{$env.YOUTUBE_CATEGORY_ID || '22'}}",
+        "privacyStatus": "={{$env.YOUTUBE_PRIVACY_STATUS || 'public'}}",
+        "additionalFields": {
+          "tags": "={{['Bible','Christian','Faith','Jesus','Shorts']}}"
+        }
+      },
+      "id": "12",
+      "name": "Upload to YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        2460,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{$('Take First Queue Video').item.json.id}}"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1nCUBlAP_YmV93BP5edvEz8oa0wr6utTA"
+        },
+        "options": {},
+        "jsCode": "const fileId = String($('Take First Queue Video').item.json.id || '');\nconst fileName = String($('Take First Queue Video').item.json.name || '');\n\nreturn [{\n  json: {\n    fileId,\n    fileName,\n    destFolder: $('Evaluate Quota').item.json.postedFolderId\n  }\n}];"
+      },
+      "id": "13",
+      "name": "Move to Posted Folder",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2710,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "minutes"
+      },
+      "id": "14",
+      "name": "Wait 5 Minutes",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2950,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'skipped', reason: 'Instagram quota exceeded or no queue item', at: new Date().toISOString() } }];"
+      },
+      "id": "15",
+      "name": "Log Skip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1210,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Next Queue Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check IG Quota": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Quota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Quota": {
+      "main": [
+        [
+          {
+            "node": "Quota Available?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quota Available?": {
+      "main": [
+        [
+          {
+            "node": "Get Next Queue Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next Queue Video": {
+      "main": [
+        [
+          {
+            "node": "Sort Queue Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort Queue Videos": {
+      "main": [
+        [
+          {
+            "node": "Take First Queue Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Take First Queue Video": {
+      "main": [
+        [
+          {
+            "node": "Queue Has File?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue Has File?": {
+      "main": [
+        [
+          {
+            "node": "Download Queue Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Queue Video": {
+      "main": [
+        [
+          {
+            "node": "Upload to Cloudinary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Cloudinary": {
+      "main": [
+        [
+          {
+            "node": "Create IG Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create IG Media": {
+      "main": [
+        [
+          {
+            "node": "Wait IG Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait IG Processing": {
+      "main": [
+        [
+          {
+            "node": "Publish IG Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish IG Media": {
+      "main": [
+        [
+          {
+            "node": "Move to Posted Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube": {
+      "main": [
+        [
+          {
+            "node": "Move to Posted Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Posted Folder": {
+      "main": [
+        [
+          {
+            "node": "Wait 5 Minutes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "publisher-v1",
+  "id": "bible-shorts-publisher"
+}

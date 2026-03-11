@@ -77,6 +77,40 @@ def has_uploaded_today(db_path: Path, verse: str, reference: str, run_date: str)
         return row is not None
 
 
+def has_uploaded_within_days(
+    db_path: Path,
+    verse: str,
+    reference: str,
+    run_date: str,
+    no_repeat_days: int,
+) -> bool:
+    with get_conn(db_path) as conn:
+        if no_repeat_days <= 0:
+            row = conn.execute(
+                """
+                SELECT 1
+                FROM uploads
+                WHERE verse = ? AND reference = ?
+                LIMIT 1
+                """,
+                (verse, reference),
+            ).fetchone()
+            return row is not None
+
+        row = conn.execute(
+            """
+            SELECT 1
+            FROM uploads
+            WHERE verse = ?
+              AND reference = ?
+              AND run_date >= date(?, '-' || ? || ' days')
+            LIMIT 1
+            """,
+            (verse, reference, run_date, no_repeat_days),
+        ).fetchone()
+        return row is not None
+
+
 def record_render(
     db_path: Path,
     run_date: str,

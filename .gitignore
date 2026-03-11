@@ -1,0 +1,28 @@
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Local runtime data
+local-data/
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log

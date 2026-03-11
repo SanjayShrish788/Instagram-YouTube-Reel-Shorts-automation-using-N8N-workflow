@@ -10,6 +10,31 @@ from pathlib import Path
 
 
 MUSIC_EXTENSIONS = {".mp3", ".wav", ".aac", ".m4a", ".flac", ".ogg"}
+VIDEO_WIDTH = 720
+VIDEO_HEIGHT = 1280
+
+
+def is_valid_audio_file(path: Path) -> bool:
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "a:0",
+                "-show_entries",
+                "stream=codec_type",
+                "-of",
+                "default=nw=1:nk=1",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        return result.returncode == 0 and "audio" in (result.stdout or "")
+    except Exception:
+        return False
 
 
 def sanitize_text(value: str) -> str:
@@ -34,9 +59,9 @@ def wrap_for_mobile(text: str) -> list[str]:
 
 def estimate_verse_font_size(lines: list[str]) -> int:
     longest = max((len(line) for line in lines), default=1)
-    safe_width = 1080 * 0.84
+    safe_width = VIDEO_WIDTH * 0.84
     approx = int(safe_width / max(1.0, longest * 0.58))
-    return max(34, min(54, approx))
+    return max(30, min(48, approx))
 
 
 def escape_filter_value(value: str) -> str:
@@ -84,7 +109,14 @@ def pick_music_file(music_dir: Path, requested_music_file: str | None) -> Path |
     ]
     if not files:
         return None
-    return random.choice(files)
+
+    files = [path for path in files if is_valid_audio_file(path)]
+    if not files:
+        return None
+
+    mp3_files = [path for path in files if path.suffix.lower() == ".mp3"]
+    pool = mp3_files if mp3_files else files
+    return random.choice(pool)
 
 
 def build_filter_complex(
@@ -94,14 +126,16 @@ def build_filter_complex(
     verse_font_size: int,
     reference_font_size: int,
 ) -> str:
-    fade_alpha = "if(lt(t\\,1)\\,t\\,1)"
+    # Keep text fully visible from frame 1 so social platforms don't pick a black cover frame.
+    fade_alpha = "1"
     audio_fade_out_start = max(0.0, duration - 1.0)
     font_file = escape_filter_value("/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf")
 
     line_gap = 8
     line_height = verse_font_size + line_gap
     total_block_height = len(verse_lines) * line_height
-    start_y = int(0.43 * 1920 - (total_block_height / 2))
+    start_y = int((VIDEO_HEIGHT * 0.38) - (total_block_height / 2))
+    reference_y = min(int(VIDEO_HEIGHT * 0.82), start_y + total_block_height + 70)
 
     video_parts = [
         f"[0:v]format=yuv420p,trim=duration={duration},setpts=PTS-STARTPTS",
@@ -129,7 +163,7 @@ def build_filter_complex(
         f"text='{escaped_reference}':"
         "expansion=none:text_shaping=0:"
         f"fontcolor=white:fontsize={reference_font_size}:"
-        "x=(w-text_w)/2:y=(h*0.72):"
+        f"x=(w-text_w)/2:y={reference_y}:"
         "shadowcolor=black@0.0:shadowx=0:shadowy=0:borderw=0:"
         f"alpha='{fade_alpha}'"
     )
@@ -194,7 +228,7 @@ def render_short(
         "-f",
         "lavfi",
         "-i",
-        "color=c=black:s=1080x1920:r=30",
+        f"color=c=black:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:r=30",
         "-stream_loop",
         "-1",
         "-i",
@@ -207,16 +241,39 @@ def render_short(
         "[a]",
         "-t",
         str(duration),
+        "-shortest",
+        "-r",
+        "30",
         "-c:v",
         "libx264",
+        "-profile:v",
+        "main",
+        "-level:v",
+        "4.0",
+        "-preset",
+        "superfast",
+        "-crf",
+        "28",
+        "-g",
+        "60",
+        "-keyint_min",
+        "60",
+        "-sc_threshold",
+        "0",
+        "-threads",
+        "1",
         "-pix_fmt",
         "yuv420p",
         "-c:a",
         "aac",
         "-b:a",
-        "192k",
+        "128k",
         "-ar",
-        "44100",
+        "48000",
+        "-ac",
+        "2",
+        "-movflags",
+        "+faststart",
         str(output_file),
     ]
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
+export PYTHONPATH=/opt/service
+
 python scripts/init_data.py
 python scripts/seed_data.py
 

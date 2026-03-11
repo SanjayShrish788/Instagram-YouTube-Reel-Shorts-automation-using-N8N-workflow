@@ -15,7 +15,7 @@ class VerseResponse(BaseModel):
 class RenderRequest(BaseModel):
     verse: str = Field(min_length=1)
     reference: str = Field(min_length=1)
-    duration: float = Field(default=7.0, ge=6.0, le=8.0)
+    duration: float = Field(default=11.0, ge=10.0, le=12.0)
     music_file: str | None = None
     output_name: str = Field(default="bible_short.mp4")
 
@@ -32,6 +32,7 @@ class RenderResponse(BaseModel):
 class UploadCheckResponse(BaseModel):
     duplicate: bool
     run_date: str
+    no_repeat_days: int
 
 
 class UploadRecordRequest(BaseModel):

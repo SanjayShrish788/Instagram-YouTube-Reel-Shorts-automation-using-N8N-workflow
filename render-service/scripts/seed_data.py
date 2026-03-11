@@ -56,7 +56,6 @@ def main() -> None:
     settings.local_verses_path.parent.mkdir(parents=True, exist_ok=True)
 
     write_sample_verses(settings.local_verses_path)
-    write_sample_music(settings.music_dir / "sample_calm_beat.wav")
 
     print("Seed complete.")
 

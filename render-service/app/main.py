@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from .config import settings
-from .db import has_uploaded_today, init_db, record_render, record_upload
+from .db import has_uploaded_within_days, init_db, record_render, record_upload
 from .models import (
     HealthResponse,
     MusicFilesResponse,
@@ -69,10 +69,20 @@ def music_files() -> MusicFilesResponse:
 
 
 @app.get("/uploads/check", response_model=UploadCheckResponse, dependencies=[Depends(require_api_key)])
-def upload_check(verse: str = Query(...), reference: str = Query(...)) -> UploadCheckResponse:
+def upload_check(
+    verse: str = Query(...),
+    reference: str = Query(...),
+    no_repeat_days: int = Query(default=0, ge=0),
+) -> UploadCheckResponse:
     run_date = utc_date_str()
-    duplicate = has_uploaded_today(settings.state_db, verse.strip(), reference.strip(), run_date)
-    return UploadCheckResponse(duplicate=duplicate, run_date=run_date)
+    duplicate = has_uploaded_within_days(
+        settings.state_db,
+        verse.strip(),
+        reference.strip(),
+        run_date,
+        no_repeat_days,
+    )
+    return UploadCheckResponse(duplicate=duplicate, run_date=run_date, no_repeat_days=no_repeat_days)
 
 
 @app.post("/render", response_model=RenderResponse, dependencies=[Depends(require_api_key)])

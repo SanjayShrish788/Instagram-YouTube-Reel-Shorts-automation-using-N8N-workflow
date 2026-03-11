@@ -1,0 +1,348 @@
+{
+  "name": "Creator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "('1oFNdUaD9SkhLMPojRkm1cENljIfkoCzz' in parents or '1nCUBlAP_YmV93BP5edvEz8oa0wr6utTA' in parents) and trashed = false",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "id": "11",
+      "name": "Count Queue Files",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "alwaysOutputData": true,
+      "position": [
+        440,
+        280
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst realItems = items.filter((i) => i?.json && Object.keys(i.json).length > 0 && i.json.id);\n\nlet maxVideoNumber = 0;\nconst usedReferenceIds = new Set();\n\nfor (const item of realItems) {\n  const name = String(item?.json?.name || '');\n  const numMatch = name.match(/video_(\\d+)/i);\n  if (numMatch) {\n    const n = Number(numMatch[1]);\n    if (Number.isFinite(n) && n > maxVideoNumber) maxVideoNumber = n;\n  }\n\n  const refMatch = name.match(/__ref_([a-z0-9_]+)/i);\n  if (refMatch) usedReferenceIds.add(refMatch[1].toLowerCase());\n}\n\nconst nextVideoNumber = maxVideoNumber + 1;\n\nreturn [{\n  json: {\n    totalVideosTracked: realItems.length,\n    nextVideoNumber,\n    usedReferenceIds: Array.from(usedReferenceIds)\n  }\n}];"
+      },
+      "id": "12",
+      "name": "Normalize Count",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const books = [\n  { name: 'Genesis', chapters: 50 },\n  { name: 'Exodus', chapters: 40 },\n  { name: 'Leviticus', chapters: 27 },\n  { name: 'Numbers', chapters: 36 },\n  { name: 'Deuteronomy', chapters: 34 },\n  { name: 'Joshua', chapters: 24 },\n  { name: 'Judges', chapters: 21 },\n  { name: 'Ruth', chapters: 4 },\n  { name: '1 Samuel', chapters: 31 },\n  { name: '2 Samuel', chapters: 24 },\n  { name: '1 Kings', chapters: 22 },\n  { name: '2 Kings', chapters: 25 },\n  { name: '1 Chronicles', chapters: 29 },\n  { name: '2 Chronicles', chapters: 36 },\n  { name: 'Ezra', chapters: 10 },\n  { name: 'Nehemiah', chapters: 13 },\n  { name: 'Esther', chapters: 10 },\n  { name: 'Job', chapters: 42 },\n  { name: 'Psalms', chapters: 150 },\n  { name: 'Proverbs', chapters: 31 },\n  { name: 'Ecclesiastes', chapters: 12 },\n  { name: 'Song of Solomon', chapters: 8 },\n  { name: 'Isaiah', chapters: 66 },\n  { name: 'Jeremiah', chapters: 52 },\n  { name: 'Lamentations', chapters: 5 },\n  { name: 'Ezekiel', chapters: 48 },\n  { name: 'Daniel', chapters: 12 },\n  { name: 'Hosea', chapters: 14 },\n  { name: 'Joel', chapters: 3 },\n  { name: 'Amos', chapters: 9 },\n  { name: 'Obadiah', chapters: 1 },\n  { name: 'Jonah', chapters: 4 },\n  { name: 'Micah', chapters: 7 },\n  { name: 'Nahum', chapters: 3 },\n  { name: 'Habakkuk', chapters: 3 },\n  { name: 'Zephaniah', chapters: 3 },\n  { name: 'Haggai', chapters: 2 },\n  { name: 'Zechariah', chapters: 14 },\n  { name: 'Malachi', chapters: 4 },\n  { name: 'Matthew', chapters: 28 },\n  { name: 'Mark', chapters: 16 },\n  { name: 'Luke', chapters: 24 },\n  { name: 'John', chapters: 21 },\n  { name: 'Acts', chapters: 28 },\n  { name: 'Romans', chapters: 16 },\n  { name: '1 Corinthians', chapters: 16 },\n  { name: '2 Corinthians', chapters: 13 },\n  { name: 'Galatians', chapters: 6 },\n  { name: 'Ephesians', chapters: 6 },\n  { name: 'Philippians', chapters: 4 },\n  { name: 'Colossians', chapters: 4 },\n  { name: '1 Thessalonians', chapters: 5 },\n  { name: '2 Thessalonians', chapters: 3 },\n  { name: '1 Timothy', chapters: 6 },\n  { name: '2 Timothy', chapters: 4 },\n  { name: 'Titus', chapters: 3 },\n  { name: 'Philemon', chapters: 1 },\n  { name: 'Hebrews', chapters: 13 },\n  { name: 'James', chapters: 5 },\n  { name: '1 Peter', chapters: 5 },\n  { name: '2 Peter', chapters: 3 },\n  { name: '1 John', chapters: 5 },\n  { name: '2 John', chapters: 1 },\n  { name: '3 John', chapters: 1 },\n  { name: 'Jude', chapters: 1 },\n  { name: 'Revelation', chapters: 22 }\n];\n\nconst PER_RUN = 10;\nconst CHAPTER_CANDIDATES = 6;\n\nconst pickedChapters = new Set();\nconst out = [];\nlet attempts = 0;\nconst maxAttempts = CHAPTER_CANDIDATES * 40;\n\nwhile (out.length < CHAPTER_CANDIDATES && attempts < maxAttempts) {\n  attempts++;\n  const b = books[Math.floor(Math.random() * books.length)];\n  const chapter = Math.floor(Math.random() * b.chapters) + 1;\n  const chapterRef = `${b.name} ${chapter}`;\n  const chapterKey = `${b.name.toLowerCase()}_${chapter}`;\n  if (pickedChapters.has(chapterKey)) continue;\n\n  pickedChapters.add(chapterKey);\n  out.push({\n    json: {\n      chapterReference: chapterRef,\n      referenceEncoded: encodeURIComponent(chapterRef),\n      perRun: PER_RUN\n    }\n  });\n}\n\nif (out.length < CHAPTER_CANDIDATES) {\n  throw new Error(`Could only pick ${out.length} chapter candidates.`);\n}\n\nreturn out;"
+      },
+      "id": "2",
+      "name": "Pick Bible Reference",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://bible-api.com/{{$json.referenceEncoded}}?translation=kjv",
+        "options": {}
+      },
+      "id": "3",
+      "name": "Fetch Verse",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1220,
+        280
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 6000
+    },
+    {
+      "parameters": {
+        "jsCode": "const chapterItems = $input.all();\nconst normalizeNode = $item(0).$node['Normalize Count'].json;\nconst usedReferenceIds = new Set((normalizeNode.usedReferenceIds || []).map((x) => String(x).toLowerCase()));\n\nconst PER_RUN = Number(chapterItems[0]?.json?.perRun || 10);\n\nconst slugBook = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');\nconst cleanText = (t) => String(t || '').replace(/\\s+/g, ' ').trim();\n\nconst verseCandidates = [];\nconst seen = new Set();\n\nfor (const item of chapterItems) {\n  const j = item.json || {};\n  const verses = Array.isArray(j.verses) ? j.verses : [];\n\n  for (const v of verses) {\n    const book = String(v.book_name || '').trim();\n    const chapter = Number(v.chapter);\n    const verse = Number(v.verse);\n    const text = cleanText(v.text || '');\n\n    if (!book || !Number.isFinite(chapter) || !Number.isFinite(verse) || !text) continue;\n\n    const referenceId = `${slugBook(book)}_${chapter}_${verse}`;\n    if (usedReferenceIds.has(referenceId) || seen.has(referenceId)) continue;\n\n    seen.add(referenceId);\n    verseCandidates.push({\n      verse: text,\n      reference: `${book} ${chapter}:${verse}`,\n      referenceId\n    });\n  }\n}\n\nif (verseCandidates.length < PER_RUN) {\n  throw new Error(`Need ${PER_RUN} unused verses, but only found ${verseCandidates.length} from chapter candidates.`);\n}\n\nfor (let i = verseCandidates.length - 1; i > 0; i--) {\n  const j = Math.floor(Math.random() * (i + 1));\n  [verseCandidates[i], verseCandidates[j]] = [verseCandidates[j], verseCandidates[i]];\n}\n\nconst baseVideoNumber = Number(normalizeNode.nextVideoNumber || 1);\nconst selected = verseCandidates.slice(0, PER_RUN);\n\nreturn selected.map((s, idx) => {\n  const nextVideoNumber = baseVideoNumber + idx;\n  const drive_name = `video_${nextVideoNumber}__ref_${s.referenceId}.mp4`;\n\n  const now = new Date();\n  const stamp = now.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);\n  const output_name = `bible_short_${stamp}_${idx}.mp4`;\n\n  return {\n    json: {\n      verse: s.verse,\n      reference: s.reference,\n      referenceId: s.referenceId,\n      output_name,\n      drive_name,\n      duration: 11,\n      driveQueueFolderPath: 'BibleShorts/queue',\n      emailTo: String($env.NOTIFY_EMAIL_TO || '')\n    }\n  };\n});"
+      },
+      "id": "4",
+      "name": "Build Render Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{($env.RENDER_API_BASE || 'http://render-api:10000') + '/render'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.RENDER_API_KEY_INTERNAL}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ verse: $json.verse, reference: $json.reference, duration: $json.duration, output_name: $json.output_name }) }}",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Render Vertical Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1740,
+        280
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{($env.RENDER_API_BASE || 'http://render-api:10000') + '/files/' + $('Build Render Payload').item.json.output_name}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.RENDER_API_KEY_INTERNAL}}"
+            }
+          ]
+        },
+        "responseFormat": "file",
+        "outputPropertyName": "data",
+        "options": {}
+      },
+      "id": "6",
+      "name": "Download Rendered Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        280
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "inputDataFieldName": "data",
+        "name": "={{$('Build Render Payload').item.json.drive_name}}",
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1oFNdUaD9SkhLMPojRkm1cENljIfkoCzz"
+        },
+        "options": {}
+      },
+      "id": "7",
+      "name": "Upload to Drive Queue",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2260,
+        280
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const uploaded = $json;\nconst driveName = uploaded.name || $item(0).$node['Build Render Payload'].json.drive_name;\nconst queueCount = Number($item(0).$node['Normalize Count'].json.nextVideoNumber || 0);\n\nreturn [{\n  json: {\n    filename: driveName,\n    queueCount,\n    folderPath: $item(0).$node['Build Render Payload'].json.driveQueueFolderPath,\n    emailTo: $item(0).$node['Build Render Payload'].json.emailTo,\n    reference: $item(0).$node['Build Render Payload'].json.reference\n  }\n}];"
+      },
+      "id": "9",
+      "name": "Build Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2520,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json.emailTo}}",
+        "subject": "={{'BibleShorts Queue Updated: ' + $json.filename}}",
+        "emailType": "text",
+        "message": "={{'New video uploaded to queue.\\n\\nFilename: ' + $json.filename + '\\nQueue Count: ' + $json.queueCount + '\\nFolder: ' + $json.folderPath + '\\nReference: ' + $json.reference}}"
+      },
+      "id": "10",
+      "name": "Send Queue Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2780,
+        280
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Count Queue Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Queue Files": {
+      "main": [
+        [
+          {
+            "node": "Normalize Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Count": {
+      "main": [
+        [
+          {
+            "node": "Pick Bible Reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Bible Reference": {
+      "main": [
+        [
+          {
+            "node": "Fetch Verse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Verse": {
+      "main": [
+        [
+          {
+            "node": "Build Render Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Render Payload": {
+      "main": [
+        [
+          {
+            "node": "Render Vertical Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Vertical Video": {
+      "main": [
+        [
+          {
+            "node": "Download Rendered Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Rendered Video": {
+      "main": [
+        [
+          {
+            "node": "Upload to Drive Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Drive Queue": {
+      "main": [
+        [
+          {
+            "node": "Build Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Notification": {
+      "main": [
+        [
+          {
+            "node": "Send Queue Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "generator-v1",
+  "id": "bible-shorts-video-generator"
+}

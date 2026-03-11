@@ -1,0 +1,58 @@
+services:
+  render-api:
+    build:
+      context: ./render-service
+      dockerfile: Dockerfile
+    container_name: bible-render-api-local
+    ports:
+      - "10000:10000"
+    environment:
+      - RENDER_API_KEY_INTERNAL=${RENDER_API_KEY_INTERNAL}
+      - VERSE_SOURCE=${VERSE_SOURCE:-auto}
+      - BIBLE_API_BASE=${BIBLE_API_BASE:-https://bible-api.com}
+      - OUTPUT_BASE_URL=${OUTPUT_BASE_URL:-http://localhost:10000}
+    volumes:
+      - ./local-data/render:/data
+    restart: unless-stopped
+
+  n8n:
+    build:
+      context: ./n8n
+      dockerfile: Dockerfile
+    container_name: bible-shorts-n8n-local
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_PORT=5678
+      - N8N_HOST=localhost
+      - N8N_PROTOCOL=http
+      - N8N_SECURE_COOKIE=false
+      - N8N_USER_MANAGEMENT_DISABLED=true
+      - N8N_EDITOR_BASE_URL=http://localhost:5678
+      - WEBHOOK_URL=http://localhost:5678/
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-UTC}
+      - RENDER_API_BASE=http://render-api:10000
+      - RENDER_API_KEY_INTERNAL=${RENDER_API_KEY_INTERNAL}
+      - VERSE_SOURCE=${VERSE_SOURCE:-auto}
+      - YOUTUBE_PRIVACY_STATUS=${YOUTUBE_PRIVACY_STATUS:-public}
+      - YOUTUBE_CATEGORY_ID=${YOUTUBE_CATEGORY_ID:-22}
+      - POST_TARGET=${POST_TARGET:-both}
+      - INSTAGRAM_USER_ID=${INSTAGRAM_USER_ID:-}
+      - INSTAGRAM_PAGE_ID=${INSTAGRAM_PAGE_ID:-}
+      - INSTAGRAM_ACCESS_TOKEN=${INSTAGRAM_ACCESS_TOKEN:-}
+      - INSTAGRAM_CAPTION_TEMPLATE=${INSTAGRAM_CAPTION_TEMPLATE:-}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-}
+      - CLOUDINARY_UNSIGNED_UPLOAD_PRESET=${CLOUDINARY_UNSIGNED_UPLOAD_PRESET:-}
+      - DRIVE_QUEUE_FOLDER_ID=${DRIVE_QUEUE_FOLDER_ID:-}
+      - DRIVE_POSTED_FOLDER_ID=${DRIVE_POSTED_FOLDER_ID:-}
+      - NOTIFY_EMAIL_TO=${NOTIFY_EMAIL_TO:-}
+      - DEFAULT_MUSIC_FILE=${DEFAULT_MUSIC_FILE:-}
+      - SKIP_DUPLICATE_CHECK=${SKIP_DUPLICATE_CHECK:-false}
+      - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL:-}
+    volumes:
+      - ./local-data/n8n:/home/node/.n8n
+      - ./local-data/render/output:/files/output
+    depends_on:
+      - render-api
+    restart: unless-stopped
