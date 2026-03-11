@@ -43,15 +43,22 @@ Add your screenshots into `docs/images` and keep these names:
 
 1. Creator workflow: `docs/images/creator.png`
 2. Publisher workflow: `docs/images/publisher.png`
-3. Google Drive queue: `docs/images/queued.png`
+3. Google Drive queue: `docs/images/queue.png`
 4. Google Drive posted: `docs/images/posted.png`
 
 Then these will render on GitHub:
 
 ![Creator Workflow](docs/images/creator.png)
+Creator workflow execution graph. This flow generates Bible short videos by selecting non-repeating verse references, fetching verse text, rendering vertical videos, and uploading output to the Drive queue folder.
+
 ![Publisher Workflow](docs/images/publisher.png)
-![Google Drive Queue](docs/images/queued.png)
+Publisher workflow execution graph. This flow reads queued videos, applies deterministic ordering by video index, publishes in batches, and moves successfully processed files to the posted folder.
+
+![Google Drive Queue](docs/images/queue.png)
+Queue folder state in Google Drive. These files are pending publication and follow the `video_<n>__ref_<reference>.mp4` naming pattern used for ordering and no-repeat tracking.
+
 ![Google Drive Posted](docs/images/posted.png)
+Posted folder state in Google Drive. These files were already published and moved out of queue, providing an audit trail and preventing duplicate reposts.
 
 ## Local Run
 1. Copy env file:
