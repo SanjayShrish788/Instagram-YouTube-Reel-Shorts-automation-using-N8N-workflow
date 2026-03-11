@@ -41,17 +41,17 @@ This repository contains a two-workflow automation setup:
 ## Workflow Screenshots
 Add your screenshots into `docs/images` and keep these names:
 
-1. Creator workflow: `docs/images/creator-workflow.png`
-2. Publisher workflow: `docs/images/publisher-workflow.png`
-3. Google Drive queue: `docs/images/google-drive-queue.png`
-4. Google Drive posted: `docs/images/google-drive-posted.png`
+1. Creator workflow: `docs/images/creator.png`
+2. Publisher workflow: `docs/images/publisher.png`
+3. Google Drive queue: `docs/images/queued.png`
+4. Google Drive posted: `docs/images/posted.png`
 
 Then these will render on GitHub:
 
-![Creator Workflow](docs/images/creator-workflow.png)
-![Publisher Workflow](docs/images/publisher-workflow.png)
-![Google Drive Queue](docs/images/google-drive-queue.png)
-![Google Drive Posted](docs/images/google-drive-posted.png)
+![Creator Workflow](docs/images/creator.png)
+![Publisher Workflow](docs/images/publisher.png)
+![Google Drive Queue](docs/images/queued.png)
+![Google Drive Posted](docs/images/posted.png)
 
 ## Local Run
 1. Copy env file:
